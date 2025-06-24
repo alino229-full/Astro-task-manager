@@ -1,13 +1,39 @@
+---
+import '../styles/global.css';
+
+export interface Props {
+	title: string;
+}
+
+const { title } = Astro.props;
+---
+
 <!doctype html>
-<html lang="en">
+<html lang="fr">
 	<head>
 		<meta charset="UTF-8" />
-		<meta name="viewport" content="width=device-width" />
+		<meta name="description" content="Système de gestion de projets utilisant les nouvelles Actions d'Astro" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 		<meta name="generator" content={Astro.generator} />
-		<title>Astro Basics</title>
+		<title>{title}</title>
+		
+		<!-- Précharger les polices système -->
+		<link rel="preload" href="data:font/woff2;base64," as="font" type="font/woff2" crossorigin>
+		
+		<!-- Meta tags pour le SEO et les réseaux sociaux -->
+		<meta property="og:title" content={title} />
+		<meta property="og:description" content="Découvrez les nouvelles Actions d'Astro avec ce système de gestion de projets complet" />
+		<meta property="og:type" content="website" />
+		<meta name="twitter:card" content="summary_large_image" />
+		<meta name="twitter:title" content={title} />
+		<meta name="twitter:description" content="Système de gestion de projets avec Astro Actions" />
+		
+		<!-- Thème couleur pour mobile -->
+		<meta name="theme-color" content="#3b82f6" />
+		<meta name="msapplication-TileColor" content="#3b82f6" />
 	</head>
-	<body>
+	<body class="antialiased">
 		<slot />
 	</body>
 </html>
