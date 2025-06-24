@@ -1,0 +1,84 @@
+name: 🚀 Déploiement automatique sur VPS
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch: # Permet le déclenchement manuel
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: 📥 Checkout du code
+      uses: actions/checkout@v4
+      
+    - name: 🟢 Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        
+    - name: 📦 Installation des dépendances
+      run: npm ci
+      
+    - name: 🔨 Build de l'application
+      run: npm run build
+      
+    - name: 📁 Création de l'archive de déploiement
+      run: |
+        tar --exclude='node_modules' \
+            --exclude='.git' \
+            --exclude='.github' \
+            --exclude='.astro/cache' \
+            --exclude='*.log' \
+            --exclude='src' \
+            -czf deploy.tar.gz \
+            dist/ package.json package-lock.json db/ astro.config.mjs tsconfig.json ecosystem.config.js
+      
+    - name: 🔑 Configuration SSH
+      run: |
+        mkdir -p ~/.ssh
+        echo "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/id_rsa
+        chmod 600 ~/.ssh/id_rsa
+        ssh-keyscan -H ${{ secrets.VPS_HOST }} >> ~/.ssh/known_hosts
+        
+    - name: 📤 Envoi vers le VPS
+      run: |
+        scp deploy.tar.gz ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:/tmp/
+        
+    - name: 🚀 Déploiement sur le VPS
+      run: |
+        ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} << 'EOF'
+          # Variables
+          APP_PATH="/var/www/${{ secrets.APP_NAME }}"
+          
+          # Créer le répertoire si nécessaire
+          sudo mkdir -p $APP_PATH
+          sudo chown -R $USER:$USER $APP_PATH
+          
+          # Sauvegarder l'ancienne version
+          if [ -d "$APP_PATH/dist" ]; then
+            sudo cp -r $APP_PATH/dist $APP_PATH/dist_backup_$(date +%Y%m%d_%H%M%S) 2>/dev/null || true
+          fi
+          
+          # Extraire la nouvelle version
+          cd $APP_PATH
+          tar -xzf /tmp/deploy.tar.gz
+          
+          # Installer les dépendances de production
+          npm ci --production --silent
+          
+          # Redémarrer l'application avec PM2
+          pm2 restart ${{ secrets.APP_NAME }} || pm2 start ecosystem.config.js --env production
+          
+          # Nettoyer
+          rm /tmp/deploy.tar.gz
+          
+          echo "✅ Déploiement terminé !"
+          pm2 status
+        EOF
+        
+    - name: 🎉 Notification de succès
+      run: |
+        echo "🎉 Déploiement réussi ! Application accessible sur http://${{ secrets.VPS_HOST }}" 
